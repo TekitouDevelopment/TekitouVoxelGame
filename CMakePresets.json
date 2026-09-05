@@ -1,0 +1,19 @@
+{
+  "version": 6,
+  "cmakeMinimumRequired": {
+    "major": 4,
+    "minor": 4,
+    "patch": 3
+  },
+  "configurePresets": [
+    {
+      "name": "WinNT_10_0_26100",
+      "displayName": "Windows11 26100",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build/Client/WinNT/10_0_26100/",
+      "cacheVariables": {
+        "PLATFORM": "WinNT_10_0_26100"
+      }
+    }
+  ]
+}
