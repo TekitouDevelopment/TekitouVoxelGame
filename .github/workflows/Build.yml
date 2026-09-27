@@ -1,0 +1,108 @@
+name: Build
+
+on:
+  push:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: リポジトリをチェックアウト
+        uses: actions/checkout@v6
+
+      - name: 日本時間に設定
+        run: sudo timedatectl set-timezone Asia/Tokyo
+
+      - name: Java25をセットアップ
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '25'
+          cache: gradle
+
+      - name: GitのコミットIDを取得
+        id: git
+        run: echo "GIT_COMMIT=$(git rev-parse --short HEAD)" >> $GITHUB_ENV
+
+      - name: gradlewの実行権限付与
+        run: chmod +x ./gradlew
+
+      - name: VulkanSDKをインストール (glslc)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y glslc
+
+      - name: ビルド
+        run: ./gradlew shadowJar -PgitCommit=${GIT_COMMIT}
+
+      - name: 日時とコミットメッセージの解析
+        id: parse_commit
+        run: |
+          # アーティファクト用のタイムスタンプ
+          echo "JST_TIME=$(TZ=Asia/Tokyo date +'%Y%m%d%H%M%S')" >> $GITHUB_ENV
+          
+          # 直近のコミットメッセージを取得
+          commit_msg=$(git log -1 --pretty=%B)
+          echo "Commit Message: $commit_msg"
+
+          # 1. [prerelease タイトル 説明] の判定
+          if [[ "$commit_msg" =~ \[prerelease[[:space:]]+([^[:space:]]+)[[:space:]]+([^]]+)\] ]]; then
+            title="${BASH_REMATCH[1]}"
+            description="${BASH_REMATCH[2]}"
+            echo "RELEASE_TYPE=prerelease" >> $GITHUB_ENV
+            echo "RELEASE_TAG=$title" >> $GITHUB_ENV
+            echo "RELEASE_NAME=$title" >> $GITHUB_ENV
+            echo "RELEASE_BODY=$description" >> $GITHUB_ENV
+            echo "IS_PRERELEASE=true" >> $GITHUB_ENV
+            echo "プレリリースを作成します: tag=$title, body=$description"
+
+          # 2. [release タイトル 説明] の判定
+          elif [[ "$commit_msg" =~ \[release[[:space:]]+([^[:space:]]+)[[:space:]]+([^]]+)\] ]]; then
+            title="${BASH_REMATCH[1]}"
+            description="${BASH_REMATCH[2]}"
+            echo "RELEASE_TYPE=release" >> $GITHUB_ENV
+            echo "RELEASE_TAG=$title" >> $GITHUB_ENV
+            echo "RELEASE_NAME=$title" >> $GITHUB_ENV
+            echo "RELEASE_BODY=$description" >> $GITHUB_ENV
+            echo "IS_PRERELEASE=false" >> $GITHUB_ENV
+            echo "通常リリースを作成します: tag=$title, body=$description"
+
+          else
+            echo "RELEASE_TYPE=none" >> $GITHUB_ENV
+            echo "リリース条件には一致しませんでした。"
+          fi
+
+      - name: 配置（Artifactsアップロード）
+        uses: actions/upload-artifact@v6
+        with:
+          name: LWJGLVoxelGame-${{ env.JST_TIME }}-${{ env.GIT_COMMIT }}
+          path: |
+            Client/build/libs/*.jar
+            Server/build/libs/*.jar
+
+      - name: リリース用ファイルのリネームと整理
+        if: env.RELEASE_TYPE != 'none'
+        run: |
+          mkdir -p release_assets
+          
+          # Clientのjarをリネーム
+          cp Client/build/libs/*-all.jar release_assets/LWJGLVoxelGame-Client-${{ env.RELEASE_TAG }}.jar 2>/dev/null || cp Client/build/libs/*.jar release_assets/LWJGLVoxelGame-Client-${{ env.RELEASE_TAG }}.jar
+          
+          # Serverのjarをリネーム
+          cp Server/build/libs/*-all.jar release_assets/LWJGLVoxelGame-Server-${{ env.RELEASE_TAG }}.jar 2>/dev/null || cp Server/build/libs/*.jar release_assets/LWJGLVoxelGame-Server-${{ env.RELEASE_TAG }}.jar
+
+      - name: GitHub Releaseを作成
+        if: env.RELEASE_TYPE != 'none'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ env.RELEASE_TAG }}
+          name: ${{ env.RELEASE_NAME }}
+          body: ${{ env.RELEASE_BODY }}
+          prerelease: ${{ env.IS_PRERELEASE }}
+          files: |
+            release_assets/*.jar
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
