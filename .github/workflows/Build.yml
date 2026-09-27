@@ -78,7 +78,7 @@ jobs:
       - name: 配置（Artifactsアップロード）
         uses: actions/upload-artifact@v6
         with:
-          name: LWJGLVoxelGame-${{ env.JST_TIME }}-${{ env.GIT_COMMIT }}
+          name: TekitouVoxelGame-${{ env.JST_TIME }}-${{ env.GIT_COMMIT }}
           path: |
             Client/build/libs/*.jar
             Server/build/libs/*.jar
@@ -89,10 +89,10 @@ jobs:
           mkdir -p release_assets
           
           # Clientのjarをリネーム
-          cp Client/build/libs/*-all.jar release_assets/LWJGLVoxelGame-Client-${{ env.RELEASE_TAG }}.jar 2>/dev/null || cp Client/build/libs/*.jar release_assets/LWJGLVoxelGame-Client-${{ env.RELEASE_TAG }}.jar
+          cp Client/build/libs/*-all.jar release_assets/TekitouVoxelGame-Client-${{ env.RELEASE_TAG }}.jar 2>/dev/null || cp Client/build/libs/*.jar release_assets/TekitouVoxelGame-Client-${{ env.RELEASE_TAG }}.jar
           
           # Serverのjarをリネーム
-          cp Server/build/libs/*-all.jar release_assets/LWJGLVoxelGame-Server-${{ env.RELEASE_TAG }}.jar 2>/dev/null || cp Server/build/libs/*.jar release_assets/LWJGLVoxelGame-Server-${{ env.RELEASE_TAG }}.jar
+          cp Server/build/libs/*-all.jar release_assets/TekitouVoxelGame-Server-${{ env.RELEASE_TAG }}.jar 2>/dev/null || cp Server/build/libs/*.jar release_assets/TekitouVoxelGame-Server-${{ env.RELEASE_TAG }}.jar
 
       - name: GitHub Releaseを作成
         if: env.RELEASE_TYPE != 'none'
